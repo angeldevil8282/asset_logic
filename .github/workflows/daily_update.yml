@@ -3,10 +3,10 @@ name: Daily Asset Update Logic
 on:
   schedule:
     # JST 12:00, 15:15, 15:25 (UTCでは 3:00, 6:15, 6:25)
-    - cron: '0 3 * * *'
-    - cron: '15 6 * * *'
-    - cron: '25 6 * * *'
-    - cron: '00 7 * * *'
+    - cron: '0 3 * * 1-5'
+    - cron: '15 6 * * 1-5'
+    - cron: '25 6 * * 1-5'
+    - cron: '00 7 * * 1-5'
   workflow_dispatch: # 手動実行ボタン
 
 jobs:
