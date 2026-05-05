@@ -1,4 +1,4 @@
-name: Daily Asset Update Logic
+name: Daily Asset Update Logic v2
 
 on:
   schedule:
