@@ -20,6 +20,11 @@ jobs:
         with:
           python-version: '3.10'
 
+        # ↓ ここを追加
+      - name: Install dependencies
+        run: |
+          pip install pandas yfinance requests
+
       - name: Run Script
         # ここで計算を実行し、結果を results.json に書き出す想定です
         run: python scripts/update_assets.py
