@@ -2,15 +2,14 @@ name: Daily Asset Update Logic v2
 
 on:
   schedule:
-    # 実行タイミング（UTC）: 日本時間の 9:15, 10:00, 12:00, 14:00, 15:15, 15:25, 16:00
+    # 実行タイミング（UTC）: 日本時間の 9:15, 10:03, 12:03, 14:03, 15:13, 15:23, 16:03
     - cron: '15 0 * * 1-5'
-    - cron: '0 1 * * 1-5'
-    - cron: '0 2 * * 1-5'
-    - cron: '0 3 * * 1-5'
-    - cron: '0 5 * * 1-5'
-    - cron: '15 6 * * 1-5'
-    - cron: '25 6 * * 1-5'
-    - cron: '0 7 * * 1-5'
+    - cron: '3 1 * * 1-5'
+    - cron: '3 3 * * 1-5'
+    - cron: '3 5 * * 1-5'
+    - cron: '13 6 * * 1-5'
+    - cron: '23 6 * * 1-5'
+    - cron: '3 7 * * 1-5'
   workflow_dispatch:
 
 permissions:
@@ -61,8 +60,14 @@ jobs:
 
           # 3. 差分あり：ログ保存とコミット
           mkdir -p logs
-          FILENAME=$(date +'%Y-%m-%d_%H%M').json
+          FILENAME=$(date +'%Y-%m-%d_%H%M%D').json
           cp daily_changes.json logs/${FILENAME}
+
+          # --- ここにDiscord通知を追加 ---
+          curl -H "Content-Type: application/json" \
+               -d "{\"content\": \"✅ **資産データ更新完了**\n時刻: $(date +'%Y-%m-%d %H:%M')\nリポジトリ: my_dashboard にログを保存しました。\"}" \
+               ${{ secrets.DISCORD_WEBHOOK_URL }}
+          # ----------------------------
 
           git config user.name "Asset-Bot"
           git config user.email "bot@example.com"
