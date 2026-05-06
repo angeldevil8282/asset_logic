@@ -2,10 +2,8 @@ name: Daily Asset Update Logic v2
 
 on:
   schedule:
-    # 実行タイミング（UTC）: 日本時間の 9:15, 10:00, 12:00, 14:00, 15:15, 15:25, 16:00
-    - cron: '15 0 * * 1-5'
+    # 実行タイミング（UTC）: 日本時間の 10:00, 12:00, 14:00, 15:05, 15:25, 16:00
     - cron: '0 1 * * 1-5'
-    - cron: '0 2 * * 1-5'
     - cron: '0 3 * * 1-5'
     - cron: '0 5 * * 1-5'
     - cron: '15 6 * * 1-5'
@@ -46,33 +44,15 @@ jobs:
         run: |
           git clone https://x-access-token:${API_TOKEN}@github.com/angeldevil8282/my_dashboard.git dashboard_dest
           
-          # 1. 新しいデータをコピー
-          cp results.json dashboard_dest/daily_changes.json || echo "{}" > dashboard_dest/daily_changes.json
-
           cd dashboard_dest
-
-          # 2. ステージングしてから差分チェック
-          git add daily_changes.json
-
-          # --cached をつけることで、add済みの内容と前回のコミットを比較します
-          if git diff --cached --quiet; then
-            echo "No changes detected in assets. Skipping update."
-            exit 0
-          fi
-
-          # 3. 差分あり：ログ作成とコミット
-          echo "Changes detected. Proceeding with logging and commit."
-
-          mkdir -p logs
-          FILENAME=$(date +'%Y-%m-%d_%H%M').json
-          cp daily_changes.json logs/${FILENAME}
-
+          # 強制的にダミーファイルを作成して差分を作る
+          echo "Force Update: $(date)" > debug.txt
+          
           git config user.name "Asset-Bot"
           git config user.email "bot@example.com"
-          # ログファイルも忘れずにadd
-          git add logs/
-          git commit -m "Automated update: $(date)"
+          git add debug.txt
+          git commit -m "Token Test: $(date)"
           git push
-
+          
       - name: Show End Time
         run: date
