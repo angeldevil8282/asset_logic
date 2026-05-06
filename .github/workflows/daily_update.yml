@@ -60,7 +60,7 @@ jobs:
 
           # 3. 差分あり：ログ保存とコミット
           mkdir -p logs
-          FILENAME=$(date +'%Y-%m-%d_%H%M%D').json
+          FILENAME=$(date +'%Y-%m-%d_%H%M%S').json
           cp daily_changes.json logs/${FILENAME}
 
           # --- ここにDiscord通知を追加 ---
