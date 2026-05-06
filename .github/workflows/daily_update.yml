@@ -44,17 +44,23 @@ jobs:
         env:
           API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
         run: |
+          # 1. クローン（ここが失敗していると後続も意味がない）
           git clone https://x-access-token:${API_TOKEN}@github.com/angeldevil8282/my_dashboard.git dashboard_dest
           
           cd dashboard_dest
-          # 強制的にダミーファイルを作成して差分を作る
-          echo "Force Update: $(date)" > debug.txt
           
+          # 2. 強制的にファイルを更新
+          echo "Debug Update: $(date)" > debug.txt
+          
+          # 3. コミット設定（ここが抜けるとエラーになる）
           git config user.name "Asset-Bot"
           git config user.email "bot@example.com"
-          git add debug.txt
-          git commit -m "Token Test: $(date)"
-          git push
+          
+          git add .
+          git commit -m "Forced Debug Push: $(date)"
+          
+          # 4. 詳細なログを出しながらプッシュ
+          git push origin main --verbose
           
       - name: Show End Time
         run: date
