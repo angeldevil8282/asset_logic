@@ -44,23 +44,31 @@ jobs:
         env:
           API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
         run: |
-          # 1. クローン（ここが失敗していると後続も意味がない）
           git clone https://x-access-token:${API_TOKEN}@github.com/angeldevil8282/my_dashboard.git dashboard_dest
           
+          # 1. 新しいデータをコピー（results.jsonはPythonスクリプトが生成した最新版）
+          cp results.json dashboard_dest/daily_changes.json || echo "{}" > dashboard_dest/daily_changes.json
+
           cd dashboard_dest
-          
-          # 2. 強制的にファイルを更新
-          echo "Debug Update: $(date)" > debug.txt
-          
-          # 3. コミット設定（ここが抜けるとエラーになる）
+
+          # 2. ステージングしてから差分チェック
+          git add daily_changes.json
+
+          if git diff --cached --quiet; then
+            echo "No changes detected. Skipping update."
+            exit 0
+          fi
+
+          # 3. 差分あり：ログ保存とコミット
+          mkdir -p logs
+          FILENAME=$(date +'%Y-%m-%d_%H%M').json
+          cp daily_changes.json logs/${FILENAME}
+
           git config user.name "Asset-Bot"
           git config user.email "bot@example.com"
-          
-          git add .
-          git commit -m "Forced Debug Push: $(date)"
-          
-          # 4. 詳細なログを出しながらプッシュ
-          git push origin main --verbose
+          git add logs/
+          git commit -m "Automated update: $(date)"
+          git push
           
       - name: Show End Time
         run: date
