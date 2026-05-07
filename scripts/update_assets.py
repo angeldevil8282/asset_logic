@@ -4,48 +4,77 @@ import json
 import os
 from datetime import datetime
 
-def run_logic():
-    # 1. 銘柄リストをリポジトリ内から読み込む
-    input_path = 'data/stocks.json'
-    
-    if not os.path.exists(input_path):
-        print(f"Error: {input_path} not found.")
-        return
+# --- 最適化パラメータ ---
+SBI_COEFFICIENT = 0.9
+SBI_OFFSET = -0.05
+# ----------------------
 
+def run_logic():
+    # 銘柄リスト読み込み
+    input_path = 'data/stocks.json'
     with open(input_path, 'r', encoding='utf-8') as f:
         stocks = json.load(f)
 
-    if not stocks:
-        print("No stocks to track.")
+    # 比較用に「現在の最新データ」を読み込んでおく
+    # dashboard_dest は Actions側で clone された先のパス
+    current_data_path = 'dashboard_dest/daily_changes.json'
+    current_changes = {}
+    if os.path.exists(current_data_path):
+        with open(current_data_path, 'r') as f:
+            current_changes = json.load(f)
+
+    # データ取得
+    tickers = [f"{s['code']}.T" for s in stocks]
+    data = yf.download(tickers, period="2d", auto_adjust=True)
+    last_rows = data['Close']
+
+    new_changes = {}
+    total_eval = sum(s['evaluation'] for s in stocks)
+    sigma_raw = 0.0
+    valid_count = 0
+    sector_map = {}
+
+    for s in stocks:
+        code = s['code']
+        ticker = f"{code}.T"
+        try:
+            prices = last_rows[ticker].dropna()
+            # 2日分の価格が取れており、かつ価格が0でない場合のみ「有効」とする
+            if len(prices) >= 2 and prices.iloc[-1] > 0:
+                change = ((prices.iloc[-1] / prices.iloc[-2]) - 1) * 100
+                new_changes[code] = round(change, 2)
+                
+                contrib = (s['evaluation'] / total_eval) * change
+                sigma_raw += contrib
+                valid_count += 1
+                
+                sec = s['sector']
+                sector_map[sec] = sector_map.get(sec, 0.0) + contrib
+        except:
+            continue
+
+    # 【重要】前回と全く同じなら、ファイルを作らずに終了
+    # これにより後続の Git Commit と Discord 通知が自動でスキップされる
+    if new_changes == current_changes:
+        print("No changes detected in stock prices. Skipping update.")
         return
 
-    # 2. 株価データの取得（yfinance）
-    tickers = [f"{s['code']}.T" for s in stocks]
-    print(f"{len(tickers)} 銘柄のデータを取得中...")
-    
-    data = yf.download(tickers, period="2d", auto_adjust=True)
+    # 変化がある場合のみ計算して保存
+    prediction = (sigma_raw * SBI_COEFFICIENT) + SBI_OFFSET
+    summary = {
+        "timestamp": datetime.now().strftime('%Y/%m/%d %H:%M:%S'),
+        "prediction": round(prediction, 3),
+        "coverage": f"{valid_count}/{len(stocks)}",
+        "params": {"coeff": SBI_COEFFICIENT, "offset": SBI_OFFSET},
+        "sector_stats": sorted([{"name": k, "contrib": round(v, 4)} for k, v in sector_map.items()], 
+                               key=lambda x: abs(x['contrib']), reverse=True)
+    }
 
-    # 3. 前日比(%)を計算
-    last_rows = data['Close']
-    changes_dict = {}
-
-    for ticker in tickers:
-        try:
-            s = last_rows[ticker].dropna()
-            if len(s) >= 2:
-                change = ((s.iloc[-1] / s.iloc[-2]) - 1) * 100
-                code = ticker.replace('.T', '')
-                changes_dict[code] = round(change, 2)
-            else:
-                changes_dict[ticker.replace('.T', '')] = 0.0
-        except Exception as e:
-            changes_dict[ticker.replace('.T', '')] = 0.0
-
-    # 4. 結果を results.json として保存（Actionsがこれを拾ってダッシュボードへ送る）
-    with open('results.json', 'w', encoding='utf-8') as f:
-        json.dump(changes_dict, f, indent=2)
-
-    print(f"完了！ 実行時刻: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    # 成果物の書き出し
+    with open('results.json', 'w') as f:
+        json.dump(new_changes, f)
+    with open('summary.json', 'w', encoding='utf-8') as f:
+        json.dump(summary, f, ensure_ascii=False, indent=2)
 
 if __name__ == "__main__":
     run_logic()
