@@ -2,7 +2,7 @@ name: Daily Asset Update Logic v2
 
 on:
   schedule:
-    # 実行タイミング（UTC）: 日本時間の 9:15, 10:03, 12:03, 14:03, 15:13, 15:23, 16:03
+    # 日本時間 9:15, 10:03, 12:03, 14:03, 15:13, 15:23, 16:03
     - cron: '15 0 * * 1-5'
     - cron: '3 1 * * 1-5'
     - cron: '3 3 * * 1-5'
@@ -19,13 +19,20 @@ jobs:
   run-logic:
     runs-on: ubuntu-latest
     env:
-      TZ: 'Asia/Tokyo' # このジョブ全体を日本時間基準にする
+      TZ: 'Asia/Tokyo'
     steps:
       - name: Show Start Time
         run: date
 
       - name: Checkout Logic Repo
         uses: actions/checkout@v4
+
+      # 1. 比較用に先にダッシュボード側を clone しておく
+      - name: Clone Dashboard Repo
+        env:
+          API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
+        run: |
+          git clone https://x-access-token:${API_TOKEN}@github.com/angeldevil8282/my_dashboard.git dashboard_dest
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -36,44 +43,50 @@ jobs:
         run: |
           pip install pandas yfinance requests
 
+      # 2. Python実行（dashboard_dest 内の既存データと比較するロジックを想定）
       - name: Run Script
         run: python scripts/update_assets.py
 
+      # 3. 差分がある場合のみ反映・ログ保存・通知を行う
       - name: Push to Dashboard Repo
         env:
           API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
         run: |
-          git clone https://x-access-token:${API_TOKEN}@github.com/angeldevil8282/my_dashboard.git dashboard_dest
-          
-          # 1. 新しいデータをコピー（results.jsonはPythonスクリプトが生成した最新版）
-          cp results.json dashboard_dest/daily_changes.json || echo "{}" > dashboard_dest/daily_changes.json
+          # Pythonが生成した最新ファイルをコピー（存在しない場合は空ファイル作成）
+          [ -f results.json ] && cp results.json dashboard_dest/daily_changes.json || echo "{}" > dashboard_dest/daily_changes.json
+          [ -f summary.json ] && cp summary.json dashboard_dest/summary.json || echo "{}" > dashboard_dest/summary.json
 
           cd dashboard_dest
 
-          # 2. ステージングしてから差分チェック
-          git add daily_changes.json
+          # ステージングして差分を確認
+          git add daily_changes.json summary.json
 
+          # 差分がない（価格が動いていない）場合はここで終了
           if git diff --cached --quiet; then
             echo "No changes detected. Skipping update."
             exit 0
           fi
 
-          # 3. 差分あり：ログ保存とコミット
+          # 差分あり：ログ保存
           mkdir -p logs
-          FILENAME=$(date +'%Y-%m-%d_%H%M%S').json
-          cp daily_changes.json logs/${FILENAME}
+          TIMESTAMP=$(date +'%Y-%m-%d_%H%M%S')
+          cp daily_changes.json logs/changes_${TIMESTAMP}.json
+          cp summary.json logs/summary_${TIMESTAMP}.json
 
-          # --- ここにDiscord通知を追加 ---
-          curl -H "Content-Type: application/json" \
-               -d "{\"content\": \"✅ **資産データ更新完了**\n時刻: $(date +'%Y-%m-%d %H:%M')\nリポジトリ: my_dashboard にログを保存しました。\"}" \
-               ${{ secrets.DISCORD_WEBHOOK_URL }}
-          # ----------------------------
-
-          git config user.name "Asset-Bot"
-          git config user.email "bot@example.com"
+          # コミットとプッシュ
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add logs/
-          git commit -m "Automated update: $(date)"
+          git commit -m "Auto Update & Log: ${TIMESTAMP}"
           git push
+
+          # Discord通知（差分がある時だけ実行される）
+          PRED=$(jq -r '.prediction' summary.json)
+          COV=$(jq -r '.coverage' summary.json)
           
+          curl -H "Content-Type: application/json" \
+               -d "{\"content\": \"📈 **SBI高配当 予測更新**\n予測値: **${PRED}%**\n有効銘柄: ${COV}\n時刻: $(date +'%H:%M')\"}" \
+               ${{ secrets.DISCORD_WEBHOOK }}
+
       - name: Show End Time
         run: date
