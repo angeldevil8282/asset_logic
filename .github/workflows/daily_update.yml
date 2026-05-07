@@ -85,7 +85,7 @@ jobs:
           COV=$(jq -r '.coverage' summary.json)
           
           curl -H "Content-Type: application/json" \
-               -d "{\"content\": \"📈 **SBI高配当 予測更新**\n予測値: **${PRED}%**\n有効銘柄: ${COV}\n時刻: $(date +'%H:%M')\"}" \
+               -d "{\"content\": \"📈 **SBI高配当 予測更新**\n予測値: **${PRED}%**\n有効銘柄: ${COV}\n時刻: $(date +'%H:%M')\n\n🔗 **Dashboard:**\nhttps://angeldevil8282.github.io/my_dashboard/\"}" \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: Show End Time
