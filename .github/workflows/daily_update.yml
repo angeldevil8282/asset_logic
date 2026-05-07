@@ -11,6 +11,11 @@ on:
     - cron:  '3 7 * * 1-5'
   workflow_dispatch:
 
+# ここが「秩序」の守護神
+concurrency:
+  group: sbi-daily-update
+  cancel-in-progress: false  # 古いジョブを殺さず、順番に処理させる（ログを重視）
+
 permissions:
   contents: write
 
