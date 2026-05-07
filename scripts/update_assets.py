@@ -55,9 +55,9 @@ def run_logic():
 
     # 【重要】前回と全く同じなら、ファイルを作らずに終了
     # これにより後続の Git Commit と Discord 通知が自動でスキップされる
-    if new_changes == current_changes:
-        print("No changes detected in stock prices. Skipping update.")
-        return
+    # if new_changes == current_changes:
+    #   print("No changes detected in stock prices. Skipping update.")
+    #   return
 
     # 変化がある場合のみ計算して保存
     prediction = (sigma_raw * SBI_COEFFICIENT) + SBI_OFFSET
