@@ -56,10 +56,11 @@ jobs:
           API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          # 1. 宛先フォルダを作る
           mkdir -p dashboard_dest/crash_jp/data
           mkdir -p dashboard_dest/crash_jp/logs
-
-          # 最新ファイルを確実にコピー
+          
+          # 2. 生成されたファイルを配送（cdする前にコピーするのがコツです）
           if [ -f daily_changes.json ]; then
             cp daily_changes.json dashboard_dest/crash_jp/data/daily_changes.json
             echo "File copied successfully."
@@ -68,13 +69,14 @@ jobs:
             exit 1
           fi
 
-          # 設定ファイルなども同期
+          # 設定ファイルなども同期（cdする前に実行）
           [ -f data/crash_jp.json ] && cp data/crash_jp.json dashboard_dest/crash_jp/data/config.json
 
+          # 3. 反映処理（ここで移動する）
           cd dashboard_dest
           git add crash_jp/data/*.json || true
 
-          # 差分チェック（初回空対策としてファイルサイズも見る）
+          # 差分チェック
           FILE_SIZE=$(stat -c%s "crash_jp/data/daily_changes.json" || echo 0)
           if ! git diff --cached --quiet || [ "$FILE_SIZE" -le 10 ]; then
             TIMESTAMP=$(date +'%Y-%m-%d_%H%M%S')
@@ -89,7 +91,7 @@ jobs:
             echo "No changes in Crash Japan data. Skipping push."
           fi
 
-          # --- 通知セクション ---
+          # --- 通知セクション（パスをdashboard_dest配下に合わせる） ---
           STOCKS_INFO=$(jq -r '.stocks[] | "- \(.name): \(.change_pct)% (\(.current_price)円)"' crash_jp/data/daily_changes.json)
           UPDATE_TIME=$(jq -r '.date' crash_jp/data/daily_changes.json)
           RUN_NUM=${{ github.run_number }}
