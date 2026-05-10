@@ -20,8 +20,15 @@ def run_logic():
     current_data_path = 'dashboard_dest/sbi/data/daily_changes.json'
     current_changes = {}
     if os.path.exists(current_data_path):
-        with open(current_data_path, 'r') as f:
-            current_changes = json.load(f)
+        with open(current_data_path, 'r', encoding='utf-8') as f:
+            try:
+                current_changes = json.load(f)
+            except json.JSONDecodeError:
+                # ファイルが空、または壊れている場合は空の辞書として初期化
+                print(f"Warning: {current_data_path} is empty or invalid. Initializing as empty dict.")
+                current_changes = {}
+    else:
+        current_changes = {}
 
     # データ取得
     tickers = [f"{s['code']}.T" for s in stocks]
