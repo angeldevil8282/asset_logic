@@ -1,4 +1,4 @@
-name: Crash Japan Daily Update
+name: Sbi High Dividend Update
 
 on:
   schedule:
@@ -13,7 +13,7 @@ on:
 
 # ここが「秩序」の守護神
 concurrency:
-  group: crash_jp-daily-update
+  group: sbi-daily-update
   cancel-in-progress: false  # 古いジョブを殺さず、順番に処理させる（ログを重視）
 
 permissions:
@@ -55,54 +55,61 @@ jobs:
 
       # 2. Python実行（dashboard_dest 内の既存データと比較するロジックを想定）
       - name: Run Script
-        run: python scripts/crash_jp.py
+        run: python scripts/sbi.py
 
       # 3. 差分がある場合のみ反映・ログ保存・通知を行う
-- name: Push to Dashboard Repo
+      - name: Push to Dashboard Repo
         env:
           API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
         run: |
-          mkdir -p dashboard_dest/crash_jp/data
-          mkdir -p dashboard_dest/crash_jp/logs
+          # 保存先ディレクトリの作成（念のため）
+          mkdir -p dashboard_dest/sbi/logs
 
-          # ファイルが存在する場合のみコピーする
-          [ -f daily_changes.json ] && cp daily_changes.json dashboard_dest/crash_jp/data/daily_changes.json
-          [ -f summary.json ] && cp summary.json dashboard_dest/crash_jp/data/summary.json
-          [ -f data/crash_jp.json ] && cp data/crash_jp.json dashboard_dest/crash_jp/data/config.json
+          # 最新ファイルを sbi/ 配下にコピー
+          [ -f results.json ] && cp results.json dashboard_dest/sbi/data/daily_changes.json
+          [ -f summary.json ] && cp summary.json dashboard_dest/sbi/data/summary.json
+          # 銘柄リストも同期させておく（マスター管理のため）
+          cp data/sbi.json dashboard_dest/sbi/data/config.json
 
           cd dashboard_dest
 
-          # 存在するファイルだけを git add する
-          git add crash_jp/data/*.json || true
+          # sbi/ 以下の変更をステージング
+          git add sbi/data/daily_changes.json sbi/data/summary.json sbi/data/config.json
 
-          # 差分チェック
+          # 差分がない場合は終了
           if git diff --cached --quiet; then
-            echo "No changes in Crash Japan data. Skipping."
+            echo "No changes in SBI logic. Skipping."
             exit 0
           fi
 
-          # ログ保存（daily_changes.json があれば）
+          # 差分あり：ログ保存（sbi/logs/ 配下へ）
           TIMESTAMP=$(date +'%Y-%m-%d_%H%M%S')
-          if [ -f crash_jp/data/daily_changes.json ]; then
-            cp crash_jp/data/daily_changes.json crash_jp/logs/changes_${TIMESTAMP}.json
-          fi
+          cp sbi/data/daily_changes.json sbi/logs/changes_${TIMESTAMP}.json
+          cp sbi/data/summary.json sbi/logs/summary_${TIMESTAMP}.json
 
           # コミットとプッシュ
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -m "Crash Japan Auto Update: ${TIMESTAMP}"
+          git add sbi/logs/
+          git commit -m "SBI Auto Update: ${TIMESTAMP}"
+
           git pull --rebase origin main
           git push || (sleep 10 && git pull --rebase origin main && git push)
 
-          # --- 通知セクションの jq もファイルがないとエラーになるので修正 ---
-          # daily_changes.json から情報を取るように変更
-          STOCKS_INFO=$(jq -r '.stocks[] | "- \(.name): \(.change_pct)% (\(.current_price)円)"' crash_jp/data/daily_changes.json | head -n 5)
+          # 通知用のデータ取得（パスに注意）
+          PRED=$(jq -r '.prediction' sbi/data/summary.json)
+          COV=$(jq -r '.coverage' sbi/data/summary.json)
           
+          # curl -H "Content-Type: application/json" \
+          #      -d "{\"content\": \"📈 **SBI高配当 予測更新**\n予測値: **${PRED}%**\n有効銘柄: ${COV}\n時刻: $(date +'%H:%M')\"}" \
+          #      ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+          # --- 修正後の通知コマンド案 ---
           RUN_NUM=${{ github.run_number }}
           TRIGGER_TYPE="${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}"
 
           curl -H "Content-Type: application/json" \
-               -d "{\"content\": \"⚠️ **日本株 暴落監視 [#${RUN_NUM}]**\n種別: **${TRIGGER_TYPE}**\n\n${STOCKS_INFO}\n\n時刻: $(date +'%H:%M')\n🔗 https://angeldevil8282.github.io/my_dashboard/crash_jp/\"}" \
+               -d "{\"content\": \"📈 **SBI高配当 予測更新 [#${RUN_NUM}]**\n種別: **${TRIGGER_TYPE}**\n予測値: **${PRED}%**\n有効銘柄: ${COV}\n時刻: $(date +'%H:%M')\n\n🔗 **Dashboard:**\nhttps://angeldevil8282.github.io/my_dashboard/sbi/\"}" \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: Show End Time
