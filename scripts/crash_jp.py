@@ -63,10 +63,13 @@ def main():
     data = get_stock_data(config['tickers'])
     
     # ダッシュボード用に保存
-    os.makedirs(os.path.dirname(OUTPUT_DATA_PATH), exist_ok=True)
+    dir_name = os.path.dirname(OUTPUT_DATA_PATH)
+    if dir_name:  # ディレクトリ名がある時だけ作成する
+        os.makedirs(dir_name, exist_ok=True)
+    
     with open(OUTPUT_DATA_PATH, 'w', encoding='utf-8') as f:
         json.dump({"date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "stocks": data}, f, indent=4, ensure_ascii=False)
-    
+
     # アラート判定
     check_and_notify(data)
 
