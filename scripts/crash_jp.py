@@ -37,15 +37,17 @@ def get_stock_data(tickers):
 
 def create_discord_message(data):
     msg_lines = []
-    for s in data:
-        # 騰落率に応じたマーク
-        mark = "▼" if s['change_pct'] < 0 else "▲"
+    # 急落している銘柄だけを抽出
+    crash_stocks = [s for s in data if s['change_pct'] <= s['target_down']]
+    
+    # 急落銘柄がない場合は、メッセージを作成しない
+    if not crash_stocks:
+        return None
+
+    for s in crash_stocks:
+        mark = "▼"
+        status = "急落（閾値超過）"
         
-        # 個別閾値に基づく状況判定
-        is_crash = s['change_pct'] <= s['target_down']
-        status = "急落（閾値超過）" if is_crash else "監視中"
-        
-        # 目標価格までの距離
         if s['diff_to_target'] <= 0:
             target_info = f"(目標: {s['reference_price']:,}円 / 🎯目標到達！)"
         else:
@@ -62,11 +64,10 @@ def create_discord_message(data):
 
     stocks_summary = "\n\n".join(msg_lines)
     update_time = datetime.now().strftime("%H:%M")
-    # GitHub Actionsの実行番号を取得
     run_num = os.environ.get('GITHUB_RUN_NUMBER', '0')
 
     content = (
-        f"⚠️ **【日本株 暴落監視】[#{run_num}]**\n\n"
+        f"⚠️ **【日本株 暴落検知】[#{run_num}]**\n\n"
         f"{stocks_summary}\n\n"
         f"時刻: {update_time}\n"
         f"🔗 Dashboard: https://angeldevil8282.github.io/my_dashboard/crash_jp/"
@@ -93,13 +94,19 @@ def main():
         }
         json.dump(output_json, f, indent=4, ensure_ascii=False)
 
-    # 4. Discord用リッチメッセージ生成 & 保存
+# 4. Discord用メッセージ生成
     discord_content = create_discord_message(data)
-    with open(DISCORD_MSG_PATH, 'w', encoding='utf-8') as f:
-        json.dump({"content": discord_content}, f, ensure_ascii=False)
-
-    # コンソール出力（ログ確認用）
-    print(discord_content)
-
+    
+    # メッセージがある場合のみJSONを吐き出す
+    if discord_content:
+        with open(DISCORD_MSG_PATH, 'w', encoding='utf-8') as f:
+            json.dump({"content": discord_content}, f, ensure_ascii=False)
+        print("急落検知：通知用ファイルを生成しました。")
+    else:
+        # 既存の古い通知ファイルがあれば削除（誤送信防止）
+        if os.path.exists(DISCORD_MSG_PATH):
+            os.remove(DISCORD_MSG_PATH)
+        print("安定：急落銘柄がないため通知はスキップします。")
 if __name__ == "__main__":
     main()
+    
