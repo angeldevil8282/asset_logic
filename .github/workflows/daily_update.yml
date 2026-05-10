@@ -57,7 +57,7 @@ jobs:
       - name: Run Script
         run: python scripts/update_assets.py
 
-# 3. 差分がある場合のみ反映・ログ保存・通知を行う
+      # 3. 差分がある場合のみ反映・ログ保存・通知を行う
       - name: Push to Dashboard Repo
         env:
           API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
@@ -66,15 +66,15 @@ jobs:
           mkdir -p dashboard_dest/sbi/logs
 
           # 最新ファイルを sbi/ 配下にコピー
-          [ -f results.json ] && cp results.json dashboard_dest/sbi/daily_changes.json
-          [ -f summary.json ] && cp summary.json dashboard_dest/sbi/summary.json
+          [ -f results.json ] && cp results.json dashboard_dest/sbi/data/daily_changes.json
+          [ -f summary.json ] && cp summary.json dashboard_dest/sbi/data/summary.json
           # 銘柄リストも同期させておく（マスター管理のため）
-          cp data/stocks.json dashboard_dest/sbi/stocks.json
+          cp data/stocks.json dashboard_dest/sbi/data/config.json
 
           cd dashboard_dest
 
           # sbi/ 以下の変更をステージング
-          git add sbi/daily_changes.json sbi/summary.json sbi/stocks.json
+          git add sbi/data/daily_changes.json sbi/data/summary.json sbi/data/config.json
 
           # 差分がない場合は終了
           if git diff --cached --quiet; then
@@ -84,8 +84,8 @@ jobs:
 
           # 差分あり：ログ保存（sbi/logs/ 配下へ）
           TIMESTAMP=$(date +'%Y-%m-%d_%H%M%S')
-          cp sbi/daily_changes.json sbi/logs/changes_${TIMESTAMP}.json
-          cp sbi/summary.json sbi/logs/summary_${TIMESTAMP}.json
+          cp sbi/data/daily_changes.json sbi/logs/changes_${TIMESTAMP}.json
+          cp sbi/data/summary.json sbi/logs/summary_${TIMESTAMP}.json
 
           # コミットとプッシュ
           git config user.name "github-actions[bot]"
@@ -97,8 +97,8 @@ jobs:
           git push || (sleep 10 && git pull --rebase origin main && git push)
 
           # 通知用のデータ取得（パスに注意）
-          PRED=$(jq -r '.prediction' sbi/summary.json)
-          COV=$(jq -r '.coverage' sbi/summary.json)
+          PRED=$(jq -r '.prediction' sbi/data/summary.json)
+          COV=$(jq -r '.coverage' sbi/data/summary.json)
           
           # curl -H "Content-Type: application/json" \
           #      -d "{\"content\": \"📈 **SBI高配当 予測更新**\n予測値: **${PRED}%**\n有効銘柄: ${COV}\n時刻: $(date +'%H:%M')\"}" \
@@ -109,7 +109,7 @@ jobs:
           TRIGGER_TYPE="${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}"
 
           curl -H "Content-Type: application/json" \
-               -d "{\"content\": \"📈 **SBI高配当 予測更新 [#${RUN_NUM}]**\n種別: **${TRIGGER_TYPE}**\n予測値: **${PRED}%**\n有効銘柄: ${COV}\n時刻: $(date +'%H:%M')\n\n🔗 **Dashboard:**\nhttps://angeldevil8282.github.io/my_dashboard/\"}" \
+               -d "{\"content\": \"📈 **SBI高配当 予測更新 [#${RUN_NUM}]**\n種別: **${TRIGGER_TYPE}**\n予測値: **${PRED}%**\n有効銘柄: ${COV}\n時刻: $(date +'%H:%M')\n\n🔗 **Dashboard:**\nhttps://angeldevil8282.github.io/my_dashboard/sbi/\"}" \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: Show End Time
