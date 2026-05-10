@@ -57,50 +57,48 @@ jobs:
       - name: Run Script
         run: python scripts/update_assets.py
 
-      # 3. 差分がある場合のみ反映・ログ保存・通知を行う
+# 3. 差分がある場合のみ反映・ログ保存・通知を行う
       - name: Push to Dashboard Repo
         env:
           API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          # Pythonが生成した最新ファイルをコピー（存在しない場合は空ファイル作成）
-          [ -f results.json ] && cp results.json dashboard_dest/daily_changes.json || echo "{}" > dashboard_dest/daily_changes.json
-          [ -f summary.json ] && cp summary.json dashboard_dest/summary.json || echo "{}" > dashboard_dest/summary.json
+          # 保存先ディレクトリの作成（念のため）
+          mkdir -p dashboard_dest/sbi/logs
+
+          # 最新ファイルを sbi/ 配下にコピー
+          [ -f results.json ] && cp results.json dashboard_dest/sbi/daily_changes.json
+          [ -f summary.json ] && cp summary.json dashboard_dest/sbi/summary.json
+          # 銘柄リストも同期させておく（マスター管理のため）
+          cp data/stocks.json dashboard_dest/sbi/stocks.json
 
           cd dashboard_dest
 
-          # ステージングして差分を確認
-          git add daily_changes.json summary.json
+          # sbi/ 以下の変更をステージング
+          git add sbi/daily_changes.json sbi/summary.json sbi/stocks.json
 
-          # 差分がない（価格が動いていない）場合はここで終了
+          # 差分がない場合は終了
           if git diff --cached --quiet; then
-            echo "No changes detected. Skipping update."
+            echo "No changes in SBI logic. Skipping."
             exit 0
           fi
 
-          # 差分あり：ログ保存
-          mkdir -p logs
+          # 差分あり：ログ保存（sbi/logs/ 配下へ）
           TIMESTAMP=$(date +'%Y-%m-%d_%H%M%S')
-          cp daily_changes.json logs/changes_${TIMESTAMP}.json
-          cp summary.json logs/summary_${TIMESTAMP}.json
+          cp sbi/daily_changes.json sbi/logs/changes_${TIMESTAMP}.json
+          cp sbi/summary.json sbi/logs/summary_${TIMESTAMP}.json
 
           # コミットとプッシュ
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add logs/
-          git commit -m "Auto Update & Log: ${TIMESTAMP}"
+          git add sbi/logs/
+          git commit -m "SBI Auto Update: ${TIMESTAMP}"
 
-          # git push
-          # 最新のリモート変更を取り込む（競合回避の基本）
           git pull --rebase origin main
-
-          # プッシュ。もしこれでも競合したら、今回は「運が悪かった」として諦める設定
           git push || (sleep 10 && git pull --rebase origin main && git push)
-          
 
-          # Discord通知（差分がある時だけ実行される）
-          PRED=$(jq -r '.prediction' summary.json)
-          COV=$(jq -r '.coverage' summary.json)
+          # 通知用のデータ取得（パスに注意）
+          PRED=$(jq -r '.prediction' sbi/summary.json)
+          COV=$(jq -r '.coverage' sbi/summary.json)
           
           # curl -H "Content-Type: application/json" \
           #      -d "{\"content\": \"📈 **SBI高配当 予測更新**\n予測値: **${PRED}%**\n有効銘柄: ${COV}\n時刻: $(date +'%H:%M')\"}" \
