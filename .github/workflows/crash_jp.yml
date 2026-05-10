@@ -53,20 +53,48 @@ jobs:
         run: |
           pip install pandas yfinance requests
 
-      # 2. Python実行（dashboard_dest 内の既存データと比較するロジックを想定）
-      - name: Run Script
-        run: python scripts/crash_jp.py
+    # # 2. Python実行（dashboard_dest 内の既存データと比較するロジックを想定）
+    # - name: Run Script
+    #   run: python scripts/crash_jp.py
 
       # 3. 差分がある場合のみ反映・ログ保存・通知を行う
-      - name: Push to Dashboard Repo
-        env:
-          API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
-        run: |
-          mkdir -p dashboard_dest/crash_jp/data
-          mkdir -p dashboard_dest/crash_jp/logs
+    # - name: Push to Dashboard Repo
+    #   env:
+    #     API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
+    #   run: |
+    #     mkdir -p dashboard_dest/crash_jp/data
+    #     mkdir -p dashboard_dest/crash_jp/logs
 
-          # ファイルが存在する場合のみコピーする
-          [ -f daily_changes.json ] && cp daily_changes.json dashboard_dest/crash_jp/data/daily_changes.json
+    #     # ファイルが存在する場合のみコピーする
+    #     [ -f daily_changes.json ] && cp daily_changes.json dashboard_dest/crash_jp/data/daily_changes.json
+
+      # 2. Python実行
+            - name: Run Script
+              run: |
+                # 実行前に古いファイルを消して、生成を確実にする
+                rm -f daily_changes.json
+                python scripts/crash_jp.py
+                # もしスクリプトが別の場所に吐いているなら、ここで探してカレントに持ってくる
+                find . -name "daily_changes.json" -exec cp {} . \;
+
+            # 3. 反映処理
+            - name: Push to Dashboard Repo
+              env:
+                API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
+              run: |
+                mkdir -p dashboard_dest/crash_jp/data
+                mkdir -p dashboard_dest/crash_jp/logs
+
+                # スクリプトが吐き出した最新ファイルを確実にコピー
+                if [ -f daily_changes.json ]; then
+                  cp daily_changes.json dashboard_dest/crash_jp/data/daily_changes.json
+                  echo "File copied successfully."
+                else
+                  echo "Error: daily_changes.json not found!"
+                  exit 1 # ファイルがないならエラーで止めて原因を追究する
+                fi
+
+
           [ -f summary.json ] && cp summary.json dashboard_dest/crash_jp/data/summary.json
           [ -f data/crash_jp.json ] && cp data/crash_jp.json dashboard_dest/crash_jp/data/config.json
 
