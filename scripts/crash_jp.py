@@ -70,6 +70,14 @@ def main():
     with open(OUTPUT_DATA_PATH, 'w', encoding='utf-8') as f:
         json.dump({"date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "stocks": data}, f, indent=4, ensure_ascii=False)
 
+    # Discord用の通知メッセージを組み立てる
+    stocks_summary = "\n".join([f"- {s['name']}: {s['change_pct']}% ({s['current_price']}円)" for s in data])
+    update_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    content = f"⚠️ **日本株 暴落監視**\n\n{stocks_summary}\n\n時刻: {update_time}\n🔗 https://angeldevil8282.github.io/my_dashboard/crash_jp/"
+
+    with open('discord_msg.json', 'w', encoding='utf-8') as f:
+        json.dump({"content": content}, f, ensure_ascii=False)
+
     # アラート判定
     check_and_notify(data)
 
