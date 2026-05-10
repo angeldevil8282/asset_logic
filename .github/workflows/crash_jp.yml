@@ -58,7 +58,7 @@ jobs:
         run: python scripts/crash_jp.py
 
       # 3. 差分がある場合のみ反映・ログ保存・通知を行う
-- name: Push to Dashboard Repo
+      - name: Push to Dashboard Repo
         env:
           API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
         run: |
