@@ -92,14 +92,22 @@ jobs:
           fi
 
           # --- 通知セクション（パスをdashboard_dest配下に合わせる） ---
-          STOCKS_INFO=$(jq -r '.stocks[] | "- \(.name): \(.change_pct)% (\(.current_price)円)"' crash_jp/data/daily_changes.json)
-          UPDATE_TIME=$(jq -r '.date' crash_jp/data/daily_changes.json)
-          RUN_NUM=${{ github.run_number }}
-          TRIGGER_TYPE="${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}"
+        # STOCKS_INFO=$(jq -r '.stocks[] | "- \(.name): \(.change_pct)% (\(.current_price)円)"' crash_jp/data/daily_changes.json)
+        # UPDATE_TIME=$(jq -r '.date' crash_jp/data/daily_changes.json)
+        # RUN_NUM=${{ github.run_number }}
+        # TRIGGER_TYPE="${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}"
 
-          curl -H "Content-Type: application/json" \
-               -d "{\"content\": \"⚠️ **日本株 暴落監視 [#${RUN_NUM}]**\n種別: **${TRIGGER_TYPE}**\n\n${STOCKS_INFO}\n\n時刻: ${UPDATE_TIME}\n🔗 https://angeldevil8282.github.io/my_dashboard/crash_jp/\"}" \
-               $DISCORD_WEBHOOK_URL
+        # curl -H "Content-Type: application/json" \
+        #      -d "{\"content\": \"⚠️ **日本株 暴落監視 [#${RUN_NUM}]**\n種別: **${TRIGGER_TYPE}**\n\n${STOCKS_INFO}\n\n時刻: ${UPDATE_TIME}\n🔗 https://angeldevil8282.github.io/my_dashboard/crash_jp/\"}" \
+        #      $DISCORD_WEBHOOK_URL
+
+          # --- 通知セクション ---
+          # Pythonが吐き出したJSONをそのまま送信する
+          if [ -f discord_msg.json ]; then
+            curl -H "Content-Type: application/json" \
+                 -d @discord_msg.json \
+                 $DISCORD_WEBHOOK_URL
+          fi
 
       - name: Show End Time
         run: date
