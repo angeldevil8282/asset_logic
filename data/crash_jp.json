@@ -1,0 +1,16 @@
+{
+  "tickers": [
+    {
+      "symbol": "7974.T",
+      "name": "任天堂",
+      "target_down": -1.0,
+      "reference_price": 5500
+    },
+    {
+      "symbol": "8316.T",
+      "name": "三井住友FG",
+      "target_down": -1.5,
+      "reference_price": 10000
+    }
+  ]
+}
