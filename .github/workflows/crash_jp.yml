@@ -96,13 +96,29 @@ jobs:
 
           # --- 通知セクションの jq もファイルがないとエラーになるので修正 ---
           # daily_changes.json から情報を取るように変更
-          STOCKS_INFO=$(jq -r '.stocks[] | "- \(.name): \(.change_pct)% (\(.current_price)円)"' crash_jp/data/daily_changes.json | head -n 5)
+          # STOCKS_INFO=$(jq -r '.stocks[] | "- \(.name): \(.change_pct)% (\(.current_price)円)"' crash_jp/data/daily_changes.json | head -n 5)
           
+          # RUN_NUM=${{ github.run_number }}
+          # TRIGGER_TYPE="${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}"
+
+          # curl -H "Content-Type: application/json" \
+          #    -d "{\"content\": \"⚠️ **日本株 暴落監視 [#${RUN_NUM}]**\n種別: **${TRIGGER_TYPE}**\n\n${STOCKS_INFO}\n\n時刻: $(date +'%H:%M')\n🔗 https://angeldevil8282.github.io/my_dashboard/crash_jp/\"}" \
+          #    ${{ secrets.DISCORD_WEBHOOK_URL }}
+          
+          
+          # --- 通知用データの抽出 (daily_changes.json を使う) ---
+          # 銘柄名と騰落率、現在価格を抽出してリスト化する
+          STOCKS_INFO=$(jq -r '.stocks[] | "- \(.name): \(.change_pct)% (\(.current_price)円)"' crash_jp/data/daily_changes.json)
+          
+          # 更新時刻を取得
+          UPDATE_TIME=$(jq -r '.date' crash_jp/data/daily_changes.json)
+
           RUN_NUM=${{ github.run_number }}
           TRIGGER_TYPE="${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}"
 
+          # 通知の送信
           curl -H "Content-Type: application/json" \
-               -d "{\"content\": \"⚠️ **日本株 暴落監視 [#${RUN_NUM}]**\n種別: **${TRIGGER_TYPE}**\n\n${STOCKS_INFO}\n\n時刻: $(date +'%H:%M')\n🔗 https://angeldevil8282.github.io/my_dashboard/crash_jp/\"}" \
+               -d "{\"content\": \"⚠️ **日本株 暴落監視 [#${RUN_NUM}]**\n種別: **${TRIGGER_TYPE}**\n\n${STOCKS_INFO}\n\n時刻: ${UPDATE_TIME}\n🔗 https://angeldevil8282.github.io/my_dashboard/crash_jp/\"}" \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: Show End Time
