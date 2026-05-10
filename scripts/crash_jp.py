@@ -6,9 +6,9 @@ from datetime import datetime
 
 # 設定ファイルとデータ保存先のパス
 CONFIG_PATH = 'data/crash_jp.json'
-# my_dashboardリポジトリ側に書き出すパス（環境に合わせて調整）
-# OUTPUT_DATA_PATH = '../my_dashboard/crash_jp/data/daily_changes.json'
+# カレントディレクトリに書き出す（YAML側で配送する）
 OUTPUT_DATA_PATH = 'daily_changes.json'
+DISCORD_MSG_PATH = 'discord_msg.json'
 
 def get_stock_data(tickers):
     results = []
@@ -35,51 +35,71 @@ def get_stock_data(tickers):
         })
     return results
 
-def check_and_notify(results):
-    alert_messages = []
-    for r in results:
-        # 銘柄個別の閾値を超えているか判定
-        if r['change_pct'] <= r['target_down']:
-            diff_text = f"あと {r['diff_to_target']:.0f}円" if r['diff_to_target'] > 0 else "🎯目標到達！"
-            msg = (
-                f"⚠️【急落検知】{r['name']}\n"
-                f"騰落: {r['change_pct']}% (閾値: {r['target_down']}%)\n"
-                f"現在: {r['current_price']:,}円\n"
-                f"目標: {r['reference_price']:,}円 ({diff_text})"
-            )
-            alert_messages.append(msg)
-    
-    if alert_messages:
-        full_message = "\n\n".join(alert_messages)
-        print(full_message)
-        # ここにDiscordやLINEへの通知関数を呼び出す（SBI版の流用）
-    else:
-        print("閾値を超えた銘柄はありません。")
+def create_discord_message(data):
+    msg_lines = []
+    for s in data:
+        # 騰落率に応じたマーク
+        mark = "▼" if s['change_pct'] < 0 else "▲"
+        
+        # 個別閾値に基づく状況判定
+        is_crash = s['change_pct'] <= s['target_down']
+        status = "急落（閾値超過）" if is_crash else "監視中"
+        
+        # 目標価格までの距離
+        if s['diff_to_target'] <= 0:
+            target_info = f"(目標: {s['reference_price']:,}円 / 🎯目標到達！)"
+        else:
+            target_info = f"(目標: {s['reference_price']:,}円 / あと +{s['diff_to_target']:,}円)"
+
+        line = (
+            f"**{s['name']}** ({s['symbol']})\n"
+            f"状況: {status}\n"
+            f"騰落: {s['change_pct']}% {mark}\n"
+            f"現在: {s['current_price']:,}円\n"
+            f"{target_info}"
+        )
+        msg_lines.append(line)
+
+    stocks_summary = "\n\n".join(msg_lines)
+    update_time = datetime.now().strftime("%H:%M")
+    # GitHub Actionsの実行番号を取得
+    run_num = os.environ.get('GITHUB_RUN_NUMBER', '0')
+
+    content = (
+        f"⚠️ **【日本株 暴落監視】[#{run_num}]**\n\n"
+        f"{stocks_summary}\n\n"
+        f"時刻: {update_time}\n"
+        f"🔗 Dashboard: https://angeldevil8282.github.io/my_dashboard/crash_jp/"
+    )
+    return content
 
 def main():
+    # 1. 設定読み込み
     with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
         config = json.load(f)
     
+    # 2. データ取得
     data = get_stock_data(config['tickers'])
     
-    # ダッシュボード用に保存
+    # 3. ダッシュボード用JSON保存
     dir_name = os.path.dirname(OUTPUT_DATA_PATH)
-    if dir_name:  # ディレクトリ名がある時だけ作成する
+    if dir_name:
         os.makedirs(dir_name, exist_ok=True)
     
     with open(OUTPUT_DATA_PATH, 'w', encoding='utf-8') as f:
-        json.dump({"date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "stocks": data}, f, indent=4, ensure_ascii=False)
+        output_json = {
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "stocks": data
+        }
+        json.dump(output_json, f, indent=4, ensure_ascii=False)
 
-    # Discord用の通知メッセージを組み立てる
-    stocks_summary = "\n".join([f"- {s['name']}: {s['change_pct']}% ({s['current_price']}円)" for s in data])
-    update_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    content = f"⚠️ **日本株 暴落監視**\n\n{stocks_summary}\n\n時刻: {update_time}\n🔗 https://angeldevil8282.github.io/my_dashboard/crash_jp/"
+    # 4. Discord用リッチメッセージ生成 & 保存
+    discord_content = create_discord_message(data)
+    with open(DISCORD_MSG_PATH, 'w', encoding='utf-8') as f:
+        json.dump({"content": discord_content}, f, ensure_ascii=False)
 
-    with open('discord_msg.json', 'w', encoding='utf-8') as f:
-        json.dump({"content": content}, f, ensure_ascii=False)
-
-    # アラート判定
-    check_and_notify(data)
+    # コンソール出力（ログ確認用）
+    print(discord_content)
 
 if __name__ == "__main__":
     main()
