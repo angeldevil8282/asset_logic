@@ -17,7 +17,7 @@ def run_logic():
 
     # 比較用に「現在の最新データ」を読み込んでおく
     # dashboard_dest は Actions側で clone された先のパス
-    current_data_path = 'dashboard_dest/sbi/daily_changes.json'
+    current_data_path = 'dashboard_dest/sbi/data/daily_changes.json'
     current_changes = {}
     if os.path.exists(current_data_path):
         with open(current_data_path, 'r') as f:
