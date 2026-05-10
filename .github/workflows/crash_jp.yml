@@ -46,21 +46,22 @@ jobs:
 
       - name: Run Script
         run: |
-          rm -f daily_changes.json
+          rm -f daily_changes.json discord_msg.json
           python scripts/crash_jp.py
-          # もしスクリプトが別の場所に吐いている場合に備えた保険
+          # 階層がズレていてもカレントに回収する
           find . -maxdepth 2 -name "daily_changes.json" -exec cp {} . \;
+          find . -maxdepth 2 -name "discord_msg.json" -exec cp {} . \;
 
       - name: Push to Dashboard Repo
         env:
           API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          # 1. 宛先フォルダを作る
+          # 1. 宛先フォルダ準備
           mkdir -p dashboard_dest/crash_jp/data
           mkdir -p dashboard_dest/crash_jp/logs
           
-          # 2. 生成されたファイルを配送（cdする前にコピーするのがコツです）
+          # 2. ファイル配送
           if [ -f daily_changes.json ]; then
             cp daily_changes.json dashboard_dest/crash_jp/data/daily_changes.json
             echo "File copied successfully."
@@ -69,14 +70,12 @@ jobs:
             exit 1
           fi
 
-          # 設定ファイルなども同期（cdする前に実行）
           [ -f data/crash_jp.json ] && cp data/crash_jp.json dashboard_dest/crash_jp/data/config.json
 
-          # 3. 反映処理（ここで移動する）
+          # 3. 反映処理
           cd dashboard_dest
           git add crash_jp/data/*.json || true
 
-          # 差分チェック
           FILE_SIZE=$(stat -c%s "crash_jp/data/daily_changes.json" || echo 0)
           if ! git diff --cached --quiet || [ "$FILE_SIZE" -le 10 ]; then
             TIMESTAMP=$(date +'%Y-%m-%d_%H%M%S')
@@ -88,25 +87,17 @@ jobs:
             git pull --rebase origin main
             git push || (sleep 10 && git pull --rebase origin main && git push)
           else
-            echo "No changes in Crash Japan data. Skipping push."
+            echo "No changes in data. Skipping push."
           fi
 
-          # --- 通知セクション（パスをdashboard_dest配下に合わせる） ---
-        # STOCKS_INFO=$(jq -r '.stocks[] | "- \(.name): \(.change_pct)% (\(.current_price)円)"' crash_jp/data/daily_changes.json)
-        # UPDATE_TIME=$(jq -r '.date' crash_jp/data/daily_changes.json)
-        # RUN_NUM=${{ github.run_number }}
-        # TRIGGER_TYPE="${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}"
-
-        # curl -H "Content-Type: application/json" \
-        #      -d "{\"content\": \"⚠️ **日本株 暴落監視 [#${RUN_NUM}]**\n種別: **${TRIGGER_TYPE}**\n\n${STOCKS_INFO}\n\n時刻: ${UPDATE_TIME}\n🔗 https://angeldevil8282.github.io/my_dashboard/crash_jp/\"}" \
-        #      $DISCORD_WEBHOOK_URL
-
-        # --- 通知セクション ---
-          # Pythonが吐き出したJSONをそのまま送信する
+          # 4. 通知セクション（dashboard_destの外にあるdiscord_msg.jsonを参照）
+          cd ..
           if [ -f discord_msg.json ]; then
             curl -H "Content-Type: application/json" \
                  -d @discord_msg.json \
                  $DISCORD_WEBHOOK_URL
+          else
+            echo "Notification skipped: discord_msg.json not found."
           fi
 
       - name: Show End Time
