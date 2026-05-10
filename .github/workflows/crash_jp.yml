@@ -101,7 +101,7 @@ jobs:
         #      -d "{\"content\": \"⚠️ **日本株 暴落監視 [#${RUN_NUM}]**\n種別: **${TRIGGER_TYPE}**\n\n${STOCKS_INFO}\n\n時刻: ${UPDATE_TIME}\n🔗 https://angeldevil8282.github.io/my_dashboard/crash_jp/\"}" \
         #      $DISCORD_WEBHOOK_URL
 
-          # --- 通知セクション ---
+        # --- 通知セクション ---
           # Pythonが吐き出したJSONをそのまま送信する
           if [ -f discord_msg.json ]; then
             curl -H "Content-Type: application/json" \
