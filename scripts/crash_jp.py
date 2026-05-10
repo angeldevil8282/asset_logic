@@ -7,7 +7,8 @@ from datetime import datetime
 # 設定ファイルとデータ保存先のパス
 CONFIG_PATH = 'data/crash_jp.json'
 # my_dashboardリポジトリ側に書き出すパス（環境に合わせて調整）
-OUTPUT_DATA_PATH = '../my_dashboard/crash_jp/data/daily_changes.json'
+# OUTPUT_DATA_PATH = '../my_dashboard/crash_jp/data/daily_changes.json'
+OUTPUT_DATA_PATH = 'daily_changes.json'
 
 def get_stock_data(tickers):
     results = []
