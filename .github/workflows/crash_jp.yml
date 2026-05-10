@@ -2,7 +2,6 @@ name: Crash Japan Daily Update
 
 on:
   schedule:
-    # 日本時間 9:15, 10:03, 12:03, 14:03, 15:15, 16:03
     - cron: '15 0 * * 1-5'
     - cron:  '3 1 * * 1-5'
     - cron:  '3 3 * * 1-5'
@@ -11,10 +10,9 @@ on:
     - cron:  '3 7 * * 1-5'
   workflow_dispatch:
 
-# ここが「秩序」の守護神
 concurrency:
   group: crash_jp-daily-update
-  cancel-in-progress: false  # 古いジョブを殺さず、順番に処理させる（ログを重視）
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -31,13 +29,6 @@ jobs:
       - name: Checkout Logic Repo
         uses: actions/checkout@v4
 
-      - name: Show Trigger Info
-        run: |
-          echo "Event: ${{ github.event_name }}"
-          echo "RunID: ${{ github.run_id }}"
-          echo "TriggeredAt: $(date)"
-
-      # 1. 比較用に先にダッシュボード側を clone しておく
       - name: Clone Dashboard Repo
         env:
           API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
@@ -53,86 +44,60 @@ jobs:
         run: |
           pip install pandas yfinance requests
 
-      # 2. Python実行
-            - name: Run Script
-              run: |
-                # 実行前に古いファイルを消して、生成を確実にする
-                rm -f daily_changes.json
-                python scripts/crash_jp.py
-                # もしスクリプトが別の場所に吐いているなら、ここで探してカレントに持ってくる
-                find . -name "daily_changes.json" -exec cp {} . \;
+      - name: Run Script
+        run: |
+          rm -f daily_changes.json
+          python scripts/crash_jp.py
+          # もしスクリプトが別の場所に吐いている場合に備えた保険
+          find . -maxdepth 2 -name "daily_changes.json" -exec cp {} . \;
 
-            # 3. 反映処理
-            - name: Push to Dashboard Repo
-              env:
-                API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
-              run: |
-                mkdir -p dashboard_dest/crash_jp/data
-                mkdir -p dashboard_dest/crash_jp/logs
+      - name: Push to Dashboard Repo
+        env:
+          API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          mkdir -p dashboard_dest/crash_jp/data
+          mkdir -p dashboard_dest/crash_jp/logs
 
-                # スクリプトが吐き出した最新ファイルを確実にコピー
-                if [ -f daily_changes.json ]; then
-                  cp daily_changes.json dashboard_dest/crash_jp/data/daily_changes.json
-                  echo "File copied successfully."
-                else
-                  echo "Error: daily_changes.json not found!"
-                  exit 1 # ファイルがないならエラーで止めて原因を追究する
-                fi
+          # 最新ファイルを確実にコピー
+          if [ -f daily_changes.json ]; then
+            cp daily_changes.json dashboard_dest/crash_jp/data/daily_changes.json
+            echo "File copied successfully."
+          else
+            echo "Error: daily_changes.json not found!"
+            exit 1
+          fi
 
-
-          [ -f summary.json ] && cp summary.json dashboard_dest/crash_jp/data/summary.json
+          # 設定ファイルなども同期
           [ -f data/crash_jp.json ] && cp data/crash_jp.json dashboard_dest/crash_jp/data/config.json
 
           cd dashboard_dest
-
-          # 存在するファイルだけを git add する
           git add crash_jp/data/*.json || true
 
-          # 差分チェック
-          if git diff --cached --quiet; then
-            echo "No changes in Crash Japan data. Skipping."
-            exit 0
-          fi
-
-          # ログ保存（daily_changes.json があれば）
-          TIMESTAMP=$(date +'%Y-%m-%d_%H%M%S')
-          if [ -f crash_jp/data/daily_changes.json ]; then
+          # 差分チェック（初回空対策としてファイルサイズも見る）
+          FILE_SIZE=$(stat -c%s "crash_jp/data/daily_changes.json" || echo 0)
+          if ! git diff --cached --quiet || [ "$FILE_SIZE" -le 10 ]; then
+            TIMESTAMP=$(date +'%Y-%m-%d_%H%M%S')
             cp crash_jp/data/daily_changes.json crash_jp/logs/changes_${TIMESTAMP}.json
+            
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "Crash Japan Auto Update: ${TIMESTAMP}"
+            git pull --rebase origin main
+            git push || (sleep 10 && git pull --rebase origin main && git push)
+          else
+            echo "No changes in Crash Japan data. Skipping push."
           fi
 
-          # コミットとプッシュ
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -m "Crash Japan Auto Update: ${TIMESTAMP}"
-          git pull --rebase origin main
-          git push || (sleep 10 && git pull --rebase origin main && git push)
-
-          # --- 通知セクションの jq もファイルがないとエラーになるので修正 ---
-          # daily_changes.json から情報を取るように変更
-          # STOCKS_INFO=$(jq -r '.stocks[] | "- \(.name): \(.change_pct)% (\(.current_price)円)"' crash_jp/data/daily_changes.json | head -n 5)
-          
-          # RUN_NUM=${{ github.run_number }}
-          # TRIGGER_TYPE="${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}"
-
-          # curl -H "Content-Type: application/json" \
-          #    -d "{\"content\": \"⚠️ **日本株 暴落監視 [#${RUN_NUM}]**\n種別: **${TRIGGER_TYPE}**\n\n${STOCKS_INFO}\n\n時刻: $(date +'%H:%M')\n🔗 https://angeldevil8282.github.io/my_dashboard/crash_jp/\"}" \
-          #    ${{ secrets.DISCORD_WEBHOOK_URL }}
-          
-          
-          # --- 通知用データの抽出 (daily_changes.json を使う) ---
-          # 銘柄名と騰落率、現在価格を抽出してリスト化する
+          # --- 通知セクション ---
           STOCKS_INFO=$(jq -r '.stocks[] | "- \(.name): \(.change_pct)% (\(.current_price)円)"' crash_jp/data/daily_changes.json)
-          
-          # 更新時刻を取得
           UPDATE_TIME=$(jq -r '.date' crash_jp/data/daily_changes.json)
-
           RUN_NUM=${{ github.run_number }}
           TRIGGER_TYPE="${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Scheduled' }}"
 
-          # 通知の送信
           curl -H "Content-Type: application/json" \
                -d "{\"content\": \"⚠️ **日本株 暴落監視 [#${RUN_NUM}]**\n種別: **${TRIGGER_TYPE}**\n\n${STOCKS_INFO}\n\n時刻: ${UPDATE_TIME}\n🔗 https://angeldevil8282.github.io/my_dashboard/crash_jp/\"}" \
-               ${{ secrets.DISCORD_WEBHOOK_URL }}
+               $DISCORD_WEBHOOK_URL
 
       - name: Show End Time
         run: date
