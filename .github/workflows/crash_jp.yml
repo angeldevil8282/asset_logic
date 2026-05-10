@@ -53,21 +53,6 @@ jobs:
         run: |
           pip install pandas yfinance requests
 
-    # # 2. Python実行（dashboard_dest 内の既存データと比較するロジックを想定）
-    # - name: Run Script
-    #   run: python scripts/crash_jp.py
-
-      # 3. 差分がある場合のみ反映・ログ保存・通知を行う
-    # - name: Push to Dashboard Repo
-    #   env:
-    #     API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
-    #   run: |
-    #     mkdir -p dashboard_dest/crash_jp/data
-    #     mkdir -p dashboard_dest/crash_jp/logs
-
-    #     # ファイルが存在する場合のみコピーする
-    #     [ -f daily_changes.json ] && cp daily_changes.json dashboard_dest/crash_jp/data/daily_changes.json
-
       # 2. Python実行
             - name: Run Script
               run: |
