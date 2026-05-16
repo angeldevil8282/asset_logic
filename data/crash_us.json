@@ -1,15 +1,15 @@
 {
     "tickers": [
         {"name": "NASDAQ100", "symbol": "QQQ", "reference_price": 440.0, "target_down": -1.5},
-        {"name": "Microsoft", "symbol": "MSFT", "reference_price": 410.0, "target_down": -2.0},
-        {"name": "Alphabet (A)", "symbol": "GOOGL", "reference_price": 165.0, "target_down": -2.0},
-        {"name": "Apple", "symbol": "AAPL", "reference_price": 185.0, "target_down": -2.0},
+        {"name": "Microsoft", "symbol": "MSFT", "reference_price": 350.0, "target_down": -2.0},
+        {"name": "Alphabet (A)", "symbol": "GOOGL", "reference_price": 270.0, "target_down": -2.0},
+        {"name": "Apple", "symbol": "AAPL", "reference_price": 210.0, "target_down": -2.0},
         {"name": "Meta", "symbol": "META", "reference_price": 470.0, "target_down": -2.5},
         {"name": "Amazon", "symbol": "AMZN", "reference_price": 180.0, "target_down": -2.5},
-        {"name": "Broadcom", "symbol": "AVGO", "reference_price": 1300.0, "target_down": -3.0},
+        {"name": "Broadcom", "symbol": "AVGO", "reference_price": 160.0, "target_down": -3.0},
         {"name": "TSMC", "symbol": "TSM", "reference_price": 145.0, "target_down": -3.0},
-        {"name": "NVIDIA", "symbol": "NVDA", "reference_price": 900.0, "target_down": -3.0},
-        {"name": "Micron", "symbol": "MU", "reference_price": 120.0, "target_down": -3.0},
-        {"name": "Palantir", "symbol": "PLTR", "reference_price": 24.0, "target_down": -4.0}
+        {"name": "NVIDIA", "symbol": "NVDA", "reference_price": 120.0, "target_down": -3.0},
+        {"name": "Micron", "symbol": "MU", "reference_price": 250.0, "target_down": -3.0},
+        {"name": "Palantir", "symbol": "PLTR", "reference_price": 60.0, "target_down": -4.0}
     ]
 }
