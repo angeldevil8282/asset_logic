@@ -38,7 +38,14 @@ def create_discord_message(data):
 
     for s in crash_stocks:
         mark = "📉" if s['change_pct'] < 0 else "📈"
-        target_info = f"(目標: ${s['reference_price']} / {'🎯到達!' if s['diff_to_target'] <= 0 else f'あと +${s['diff_to_target']}'})"
+      # target_info = f"(目標: ${s['reference_price']} / {'🎯到達!' if s['diff_to_target'] <= 0 else f'あと +${s['diff_to_target']}'})"
+      # 🎯 修正ポイント: f-stringのネストを避けて変数に代入する
+          if s['diff_to_target'] <= 0:
+              target_status = "🎯到達!"
+          else:
+              target_status = f"あと +${s['diff_to_target']}"
+              
+          target_info = f"(目標: ${s['reference_price']} / {target_status})"
         line = (
             f"🇺🇸 **{s['name']}** ({s['symbol']})\n"
             f"騰落: {s['change_pct']}% {mark}\n"
