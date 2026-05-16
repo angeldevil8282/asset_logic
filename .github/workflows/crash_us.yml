@@ -1,0 +1,112 @@
+name: Crash US Daily Update
+
+on:
+  schedule:
+    # 日本時間 22:00〜06:00の間、1時間おきに実行 (UTC 13:00〜21:00)
+    - cron: '18 13 * * 1-5'
+    - cron: '18 14 * * 1-5'
+    - cron: '18 15 * * 1-5'
+    - cron: '18 16 * * 1-5'
+    - cron: '18 17 * * 1-5'
+    - cron: '18 18 * * 1-5'
+    - cron: '18 19 * * 1-5'
+    - cron: '18 20 * * 1-5'
+    - cron: '18 21 * * 1-5'
+  workflow_dispatch:
+  workflow_call:  # 呼び出し可能
+  
+concurrency:
+  group: crash_us-daily-update
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run-logic:
+    runs-on: ubuntu-latest
+    env:
+      TZ: 'Asia/Tokyo'
+    steps:
+      - name: Show Start Time
+        run: date
+
+      - name: Checkout Logic Repo
+        uses: actions/checkout@v4
+
+      - name: Clone Dashboard Repo
+        env:
+          API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
+        run: |
+          git clone https://x-access-token:${API_TOKEN}@github.com/angeldevil8282/my_dashboard.git dashboard_dest
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install pandas yfinance requests
+
+      - name: Run Script
+        run: |
+          rm -f daily_changes.json discord_msg.json
+          python scripts/crash_us.py
+          # 階層がズレていてもカレントに回収する
+          find . -maxdepth 2 -name "daily_changes.json" -exec cp {} . \;
+          find . -maxdepth 2 -name "discord_msg.json" -exec cp {} . \;
+
+      - name: Push to Dashboard Repo
+        env:
+          API_TOKEN: ${{ secrets.EXTERNAL_REPO_TOKEN }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          # 1. 宛先フォルダ準備
+          mkdir -p dashboard_dest/crash_us/data
+          mkdir -p dashboard_dest/crash_us/logs
+          
+          # 2. ファイル配送
+          if [ -f daily_changes.json ]; then
+            cp daily_changes.json dashboard_dest/crash_us/data/daily_changes.json
+            echo "File copied successfully."
+          else
+            echo "Error: daily_changes.json not found!"
+            exit 1
+          fi
+
+          [ -f data/crash_us.json ] && cp data/crash_us.json dashboard_dest/crash_us/data/config.json
+
+          # 3. 反映処理
+          cd dashboard_dest
+          git add crash_us/data/*.json || true
+
+          FILE_SIZE=$(stat -c%s "crash_us/data/daily_changes.json" || echo 0)
+          if ! git diff --cached --quiet || [ "$FILE_SIZE" -le 10 ]; then
+            TIMESTAMP=$(date +'%Y-%m-%d_%H%M%S')
+            cp crash_us/data/daily_changes.json crash_us/logs/changes_${TIMESTAMP}.json
+            
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+          # git commit -m "Crash Japan Auto Update: ${TIMESTAMP}"
+          # git pull --rebase origin main
+          # git push || (sleep 10 && git pull --rebase origin main && git push)
+            git commit -m "Crash US Auto Update: ${TIMESTAMP}"
+            git pull --rebase origin main
+            git push
+          else
+            echo "No changes in data. Skipping push."
+          fi
+
+          # 4. 通知セクション（dashboard_destの外にあるdiscord_msg.jsonを参照）
+          cd ..
+          if [ -f discord_msg.json ]; then
+            curl -H "Content-Type: application/json" \
+                 -d @discord_msg.json \
+                 $DISCORD_WEBHOOK_URL
+          else
+            echo "Notification skipped: discord_msg.json not found."
+          fi
+
+      - name: Show End Time
+        run: date
