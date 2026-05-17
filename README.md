@@ -1,5 +1,19 @@
 https://angeldevil8282.github.io/my_dashboard/
 
+​📊 現在のシステム全体像
+・Data Source 市場データの取得 
+　Yahoo Finance (via Python / yfinance等)
+・Logic 閾値判定・SBI変動率算出
+　Python (scripts/sbi.py, crash_jp.py etc.)
+・Storage ログ蓄積・設定管理
+　GitHub (JSON files), logs/
+・Scheduler 定時実行（15:15 / 深夜等）
+　GitHub Actions (YAML)
+・Interface 意思決定用UI
+　GitHub Pages (React / Vite)
+・Notification リアルタイム通知
+　Discord Webhook
+
 ＜ディレクトリ構造＞
 ①SBI高配当用
 ②日経 暴落監視用
