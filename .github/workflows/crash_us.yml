@@ -3,7 +3,7 @@ name: Crash US Daily Update
 on:
   schedule:
     # 日本時間 22:00〜06:00の間、1時間おきに実行 (UTC 13:00〜21:00)
-    - cron: '18 13 * * 1-5'
+  # - cron: '18 13 * * 1-5'
   # - cron: '18 14 * * 1-5'
   # - cron: '18 15 * * 1-5'
   # - cron: '18 16 * * 1-5'
