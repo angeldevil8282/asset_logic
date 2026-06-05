@@ -3,7 +3,7 @@
     {
       "symbol": "^N225",
       "name": "日経平均",
-      "target_down": -2.0,
+      "target_down": -1.0,
       "reference_price": 38000
     },
     {
