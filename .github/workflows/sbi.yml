@@ -1,7 +1,7 @@
 name: Sbi High Dividend Update
 
 on:
-schedule: []
+# schedule: []
 # schedule:
     # 日本時間 9:15, 10:03, 12:03, 14:03, 15:15, 16:03
   # - cron: '15  0 * * 1-5'    # 日本時間 09:15⇒(実績)19:08 20:50 15:20 18:47
