@@ -71,7 +71,7 @@
   { "id": 70, "code": "6501", "name": "日立製作所", "sector": "電気機器", "evaluation": 1000623 },
   { "id": 71, "code": "4401", "name": "ADEKA", "sector": "化学", "evaluation": 999883 },
   { "id": 72, "code": "3817", "name": "SRAホールディングス", "sector": "情報・通信", "evaluation": 993355 },
-  { "id": 73, "code": "6345", "name": "アイチ　コーポレーション", "sector": "機械", "evaluation": 966342 },
+  { "id": 73, "code": "6345", "name": "アイチ コーポレーション", "sector": "機械", "evaluation": 966342 },
   { "id": 74, "code": "6920", "name": "レーザーテック", "sector": "電気機器", "evaluation": 946837 },
   { "id": 75, "code": "4206", "name": "アイカ工業", "sector": "化学", "evaluation": 936271 },
   { "id": 76, "code": "7575", "name": "日本ライフライン", "sector": "卸売業", "evaluation": 933133 },
