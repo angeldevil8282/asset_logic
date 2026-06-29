@@ -7,6 +7,12 @@
       "reference_price": 38000
     },
     {
+      "symbol": "998405.T",
+      "name": "TOPIX",
+      "target_down": -1.0,
+      "reference_price": 2800
+    },
+    {
       "symbol": "6857.T",
       "name": "アドバンテスト",
       "target_down": -9.0,
@@ -166,7 +172,7 @@
       "symbol": "5802.T",
       "name": "住友電気工業",
       "target_down": -5.0,
-      "reference_price": 5500
+      "reference_price": 1500
     },
     {
       "symbol": "7735.T",
